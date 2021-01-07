@@ -25,7 +25,6 @@ import org.springframework.assessmentjob.batch.ClosedAsInvalidPerMonthTasklet;
 import org.springframework.assessmentjob.batch.ClosedAsTaskPerMonthTasklet;
 import org.springframework.assessmentjob.batch.CommunityCreatedPerMonthTasklet;
 import org.springframework.assessmentjob.batch.NotTriagedPerMonthTasklet;
-import org.springframework.assessmentjob.batch.RateLimiterTasklet;
 import org.springframework.assessmentjob.batch.ReportGeneratingTasklet;
 import org.springframework.assessmentjob.batch.TeamCreatedPerMonthTasklet;
 import org.springframework.batch.core.Job;
@@ -50,12 +49,6 @@ public class BatchConfiguration {
 	public BatchConfiguration(JobBuilderFactory jobBuilderFactory, StepBuilderFactory stepBuilderFactory) {
 		this.jobBuilderFactory = jobBuilderFactory;
 		this.stepBuilderFactory = stepBuilderFactory;
-	}
-
-	@Bean
-	public Step rateLimitignStep(RateLimiterTasklet tasklet) {
-		return this.stepBuilderFactory.get("rateLimiter").tasklet(tasklet)
-				.build();
 	}
 
 	@Bean
@@ -139,23 +132,14 @@ public class BatchConfiguration {
 	public Job job() {
 		return this.jobBuilderFactory.get("job")
 				.start(teamCreatedPerMonthStep(null))
-				.next(rateLimitignStep(null))
 				.next(communityCreatedPerMonthStep(null))
-				.next(rateLimitignStep(null))
 				.next(closedAsDuplicatePerMonthStep(null))
-				.next(rateLimitignStep(null))
 				.next(closedAsInvalidPerMonthStep(null))
-				.next(rateLimitignStep(null))
 				.next(closedAsEnhancementPerMonthStep(null))
-				.next(rateLimitignStep(null))
 				.next(closedAsBackportedPerMonthStep(null))
-				.next(rateLimitignStep(null))
 				.next(closedAsBugPerMonthStep(null))
-				.next(rateLimitignStep(null))
 				.next(closedAsTaskPerMonthStep(null))
-				.next(rateLimitignStep(null))
 				.next(closedAsDocumentationPerMonthStep(null))
-				.next(rateLimitignStep(null))
 				.next(notTriagedPerMonthStep(null))
 				.next(reportGenerationStep(null))
 				.build();

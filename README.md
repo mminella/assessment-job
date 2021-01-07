@@ -2,8 +2,6 @@
 
 This batch job will obtain many of the metrics available from Github using the Github REST Search API.
 
-NOTE: Github's REST based Search API is highly rate limited. Because of this, there is a minute delay between each step in the batch job. Also, if you have more than one or two team members, you may need to tweak this code or run it with subsets of the members of the team to avoid hitting rate limits.
-
 ## Configuration
 
 Provide an `application.properties` file with the following:

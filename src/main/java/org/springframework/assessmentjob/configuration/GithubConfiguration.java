@@ -17,18 +17,25 @@
 package org.springframework.assessmentjob.configuration;
 
 import java.io.IOException;
+import java.net.URI;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.Collections;
+import java.util.Date;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpRequest;
 import org.springframework.http.client.ClientHttpRequestExecution;
 import org.springframework.http.client.ClientHttpRequestInterceptor;
 import org.springframework.http.client.ClientHttpResponse;
 import org.springframework.util.Base64Utils;
+import org.springframework.web.client.RequestCallback;
+import org.springframework.web.client.ResponseExtractor;
+import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestOperations;
 import org.springframework.web.client.RestTemplate;
 
@@ -40,7 +47,7 @@ public class GithubConfiguration {
 
 	@Bean
 	public RestOperations restTemplate(@Value("${github.user}") String username, @Value("${github.token}")String token) {
-		RestTemplate restTemplate = new RestTemplate();
+		RestTemplate restTemplate = new GithubRateLimitRestTemplate();
 		restTemplate.setInterceptors(Collections.singletonList(new BasicAuthorizationInterceptor(username, token)));
 		return restTemplate;
 	}
@@ -66,5 +73,62 @@ public class GithubConfiguration {
 			return execution.execute(request, body);
 		}
 
+	}
+
+	/**
+	 * Custom RestTemplate to handle GitHub rate limiting See
+	 * https://docs.github.com/en/free-pro-team@latest/rest/overview/resources-in-the-rest-api#rate-limiting
+	 *
+	 */
+	private static class GithubRateLimitRestTemplate extends RestTemplate {
+		/**
+		 * Account for any clock skew between the client and GitHub Server APIs. Adjust this as you want, but 30 seconds
+		 * seems to work pretty well.
+		 */
+		private static final Duration RATE_LIMIT_PADDING = Duration.ofSeconds(30);
+
+		/**
+		 * The count of requests that can be made before requests are blocked due to rate limitting. Comes from
+		 * X-RateLimit-Remaining response header
+		 */
+		private long rateLimitRemaining = 5000;
+
+		/**
+		 * The time at which the current rate limit window resets in <a href="http://en.wikipedia.org/wiki/Unix_time">UTC
+		 * epoch seconds</a>. X-RateLimit-Reset	 response header.
+		 */
+		private long rateLimitRestInSeconds = 0L;
+
+		@Override
+		protected <T> T doExecute(URI url, HttpMethod method, RequestCallback requestCallback, ResponseExtractor<T> responseExtractor) throws RestClientException {
+			if (this.rateLimitRemaining <= 1) {
+				long nowInMs = System.currentTimeMillis();
+				long rateLimitResetInMs = this.rateLimitRestInSeconds * 1000 + RATE_LIMIT_PADDING.toMillis();
+
+				long msToReset = rateLimitResetInMs - nowInMs;
+				if (msToReset > 0) {
+					try {
+						System.out.println("Rate limit remaining reached " + this.rateLimitRemaining + ". Sleeping for " + msToReset + " milliseconds. Will resume at " + new Date(rateLimitResetInMs));
+						Thread.sleep(msToReset);
+					} catch (InterruptedException e) {
+						throw new RuntimeException("Failed to sleep for rate limit", e);
+					}
+				}
+			}
+			return super.doExecute(url, method, requestCallback, responseExtractor);
+		}
+
+		@Override
+		protected void handleResponse(URI url, HttpMethod method, ClientHttpResponse response) throws IOException {
+			String rateLimitRemainingHeader = response.getHeaders().getFirst("X-RateLimit-Remaining");
+			if (rateLimitRemainingHeader != null) {
+				this.rateLimitRemaining = Long.parseLong(rateLimitRemainingHeader);
+			}
+			String rateLimitRestHeader = response.getHeaders().getFirst("X-RateLimit-Reset");
+			if (rateLimitRestHeader != null) {
+				this.rateLimitRestInSeconds = Long.parseLong(rateLimitRestHeader);
+			}
+			super.handleResponse(url, method, response);
+		}
 	}
 }
