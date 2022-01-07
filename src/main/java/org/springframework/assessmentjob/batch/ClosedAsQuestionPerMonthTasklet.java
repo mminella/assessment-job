@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2020 the original author or authors.
+ * Copyright 2022-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,17 +28,15 @@ import org.springframework.web.client.RestOperations;
  * @author Michael Minella
  */
 @Component
-public class ClosedAsTaskPerMonthTasklet extends BaseGithubSearchTasklet {
+public class ClosedAsQuestionPerMonthTasklet extends BaseGithubSearchTasklet {
 
-	public ClosedAsTaskPerMonthTasklet(RestOperations restTemplate,
-			Map<ReportKey, List<Long>> report,
-			ProjectAssessmentProperties properties) {
+	public ClosedAsQuestionPerMonthTasklet(RestOperations restTemplate, Map<ReportKey, List<Long>> report, ProjectAssessmentProperties properties) {
 		super(restTemplate, report, properties);
 	}
 
 	@Override
 	public String getQuery() {
-		return properties.getProjectRepo() + " is:issue closed:%s is:closed label:\"type: task\"";
+		return properties.getProjectRepo() + " is:issue closed:%s is:closed label:\"for: stackoverflow\"";
 	}
 
 	@Override
@@ -48,6 +46,6 @@ public class ClosedAsTaskPerMonthTasklet extends BaseGithubSearchTasklet {
 
 	@Override
 	public ReportKey getReportKey() {
-		return ReportKey.CLOSED_AS_TASK;
+		return ReportKey.CLOSED_AS_QUESTION;
 	}
 }

@@ -24,7 +24,6 @@ import java.time.Duration;
 import java.util.Collections;
 import java.util.Date;
 
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -45,10 +44,16 @@ import org.springframework.web.client.RestTemplate;
 @Configuration
 public class GithubConfiguration {
 
+	ProjectAssessmentProperties properties;
+
+	public GithubConfiguration(ProjectAssessmentProperties properties) {
+		this.properties = properties;
+	}
+
 	@Bean
-	public RestOperations restTemplate(@Value("${github.user}") String username, @Value("${github.token}")String token) {
+	public RestOperations restTemplate() {
 		RestTemplate restTemplate = new GithubRateLimitRestTemplate();
-		restTemplate.setInterceptors(Collections.singletonList(new BasicAuthorizationInterceptor(username, token)));
+		restTemplate.setInterceptors(Collections.singletonList(new BasicAuthorizationInterceptor(this.properties.getGithubUser(), this.properties.getGithubToken())));
 		return restTemplate;
 	}
 

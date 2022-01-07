@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2020 the original author or authors.
+ * Copyright 2022-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,38 +16,31 @@
 
 package org.springframework.assessmentjob.batch;
 
+import java.text.SimpleDateFormat;
 import java.util.List;
 import java.util.Map;
 
 import org.springframework.assessmentjob.configuration.ProjectAssessmentProperties;
 import org.springframework.assessmentjob.util.ReportKey;
-import org.springframework.stereotype.Component;
-import org.springframework.web.client.RestOperations;
+import org.springframework.batch.core.step.tasklet.Tasklet;
 
 /**
  * @author Michael Minella
  */
-@Component
-public class ClosedAsTaskPerMonthTasklet extends BaseGithubSearchTasklet {
+public abstract class ReportTasklet implements Tasklet {
+	protected final Map<ReportKey, List<Long>> report;
 
-	public ClosedAsTaskPerMonthTasklet(RestOperations restTemplate,
-			Map<ReportKey, List<Long>> report,
+	protected final ProjectAssessmentProperties properties;
+
+	public static final int MONTHS = 13;
+
+	protected SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd");
+
+	public ReportTasklet(Map<ReportKey, List<Long>> report,
 			ProjectAssessmentProperties properties) {
-		super(restTemplate, report, properties);
+		this.report = report;
+		this.properties = properties;
 	}
 
-	@Override
-	public String getQuery() {
-		return properties.getProjectRepo() + " is:issue closed:%s is:closed label:\"type: task\"";
-	}
-
-	@Override
-	public String getResultKey() {
-		return "total_count";
-	}
-
-	@Override
-	public ReportKey getReportKey() {
-		return ReportKey.CLOSED_AS_TASK;
-	}
+	public abstract ReportKey getReportKey();
 }

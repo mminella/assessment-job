@@ -28,12 +28,12 @@ import java.util.Map;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.lang3.time.DateUtils;
 
+import org.springframework.assessmentjob.configuration.ProjectAssessmentProperties;
 import org.springframework.assessmentjob.util.DateCalculationUtils;
+import org.springframework.assessmentjob.util.ReportKey;
 import org.springframework.batch.core.StepContribution;
 import org.springframework.batch.core.scope.context.ChunkContext;
-import org.springframework.batch.core.step.tasklet.Tasklet;
 import org.springframework.batch.repeat.RepeatStatus;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestOperations;
@@ -43,38 +43,33 @@ import org.springframework.web.util.UriComponentsBuilder;
  * @author Michael Minella
  */
 @Component
-public class ClosedAsEnhancementPerMonthTasklet implements Tasklet {
+public class ClosedAsEnhancementPerMonthTasklet extends ReportTasklet {
 
 	private final RestOperations restTemplate;
-
-	private final Map<String, List<Integer>> report;
-
-	private final String repo;
 
 	private SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd");
 
 	public ClosedAsEnhancementPerMonthTasklet(RestOperations restTemplate,
-			@Value("${spring.project.repo}") String repo,
-			Map<String, List<Integer>> report) {
+			Map<ReportKey, List<Long>> report,
+			ProjectAssessmentProperties properties) {
+		super(report, properties);
 		this.restTemplate = restTemplate;
-		this.repo = repo;
-		this.report = report;
 	}
 
 	@Override
 	public RepeatStatus execute(StepContribution contribution, ChunkContext chunkContext) throws Exception {
 
-		String featureQuery = repo + " is:issue closed:%s is:closed label:\"type: feature\"";
-		String enhancementQuery = repo + " is:issue closed:%s is:closed label:\"type: enhancement\"";
-		int issueCount = 0;
+		String featureQuery = this.properties.getProjectRepo() + " is:issue closed:%s is:closed label:\"type: feature\"";
+		String enhancementQuery = this.properties.getProjectRepo() + " is:issue closed:%s is:closed label:\"type: enhancement\"";
+		long issueCount = 0;
 
 		// For each month
 		Date startDate = DateCalculationUtils.getFirstMonthStartDate();
 		Date endDate = DateCalculationUtils.getFirstMonthEndDate();
 
-		List<Integer> values = new ArrayList<>(12);
+		List<Long> values = new ArrayList<>(MONTHS);
 
-		for (int i = 0; i < 12; i++) {
+		for (int i = 0; i < MONTHS; i++) {
 			UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl("https://api.github.com/search/issues")
 					.queryParam("q", String.format(featureQuery, getDateString(startDate, endDate)));
 
@@ -93,7 +88,7 @@ public class ClosedAsEnhancementPerMonthTasklet implements Tasklet {
 			response = this.restTemplate.getForEntity(uri, String.class);
 
 			result = new ObjectMapper().readValue(response.getBody(), HashMap.class);
-			issueCount += (Integer) result.get("total_count");
+			issueCount += ((Integer) result.get("total_count")).longValue();
 
 			values.add(issueCount);
 
@@ -107,7 +102,7 @@ public class ClosedAsEnhancementPerMonthTasklet implements Tasklet {
 			issueCount = 0;
 		}
 
-		report.put("closed_as_enhancement", values);
+		report.put(getReportKey(), values);
 
 		return RepeatStatus.FINISHED;
 	}
@@ -115,5 +110,10 @@ public class ClosedAsEnhancementPerMonthTasklet implements Tasklet {
 	private String getDateString(Date startDate, Date endDate) {
 
 		return String.format("%s..%s", formatter.format(startDate), formatter.format(endDate));
+	}
+
+	@Override
+	public ReportKey getReportKey() {
+		return ReportKey.CLOSED_AS_ENHANCEMENT;
 	}
 }

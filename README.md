@@ -8,18 +8,38 @@ Provide an `application.properties` file with the following:
 
 ```
 spring.main.web-application-type=none
-github.user=<YOUR_GITHUB_USER>
-github.token=<YOUR_GITHUB_TOKEN>
-spring.project.users=<GITHUB_IDS_FOR_EACH_TEAM_MEMBER> //This is comma delimited
-spring.project.repo=<repo:GITHUB_RELATIVE_URL_TO_REPO>
+spring.projectassessment.githubUser=<GITHUB USER>
+spring.projectassessment.githubToken=<GITHUB TOKEN>
+// projectUsers are the members of the team and not community members
+spring.projectassessment.projectUsers=<COMMA DELIMITED GITHUB IDS>
+spring.projectassessment.projectRepo=<GITHUB REPO>
+spring.projectassessment.projectId=<STATS.SPRING.IO PROJECT ID>
+spring.projectassessment.projectArtifactId=<PROJECT ARTIFACT ID> 
+spring.projectassessment.dependency=<START.SPRING.IO DEPENDENCY NAME>
+//If turned to false, the values of the 
+spring.projectassessment.outputDates=true
+
+# spring.elasticsearch.rest.* properties must be configured to point to the backend
+spring.elasticsearch.rest.uris=<ELASTICSEARCH_API_URL>
+spring.elasticsearch.rest.username=<STATS.SPRING.IO USERNAME>
+spring.elasticsearch.rest.password=<STATS.SPRING.IO PASSWORD>
 ```
 
 An example is as follows
 
 ```
 spring.main.web-application-type=none
-github.user=mminella
-github.token=a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0
-spring.project.users=benas,mminella
-spring.project.repo=repo:spring-projects/spring-batch
+spring.projectassessment.githubUser=mminella
+spring.projectassessment.githubToken=A4b3c2d1ezfygxhwivjuk1l2m3n4o5p6q7r8s9t0
+spring.projectassessment.projectUsers=benas,mminella,cppwfs
+spring.projectassessment.projectRepo=repo:spring-projects/spring-batch
+spring.projectassessment.projectId=spring-batch
+spring.projectassessment.projectArtifactId=spring-batch-core
+spring.projectassessment.dependency=batch
+spring.projectassessment.outputDates=true
+
+# spring.elasticsearch.rest.* properties must be configured to point to the backend
+spring.elasticsearch.rest.uris=https://some_url_to_elastic
+spring.elasticsearch.rest.username=some_username
+spring.elasticsearch.rest.password=some_password
 ```

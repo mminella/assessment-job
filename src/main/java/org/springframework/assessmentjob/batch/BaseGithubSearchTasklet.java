@@ -17,7 +17,6 @@
 package org.springframework.assessmentjob.batch;
 
 import java.net.URI;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
@@ -28,10 +27,11 @@ import java.util.Map;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.lang3.time.DateUtils;
 
+import org.springframework.assessmentjob.configuration.ProjectAssessmentProperties;
 import org.springframework.assessmentjob.util.DateCalculationUtils;
+import org.springframework.assessmentjob.util.ReportKey;
 import org.springframework.batch.core.StepContribution;
 import org.springframework.batch.core.scope.context.ChunkContext;
-import org.springframework.batch.core.step.tasklet.Tasklet;
 import org.springframework.batch.repeat.RepeatStatus;
 import org.springframework.http.HttpEntity;
 import org.springframework.web.client.RestOperations;
@@ -40,43 +40,34 @@ import org.springframework.web.util.UriComponentsBuilder;
 /**
  * @author Michael Minella
  */
-public abstract class BaseGithubSearchTasklet implements Tasklet {
+public abstract class BaseGithubSearchTasklet extends ReportTasklet {
 
 	public abstract String getQuery();
 
 	public abstract String getResultKey();
 
-	public abstract String getReportKey();
-
 	private final RestOperations restTemplate;
 
-	private final Map<String, List<Integer>> report;
-
-	private SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd");
-
-	protected final String repo;
-
 	public BaseGithubSearchTasklet(RestOperations restTemplate,
-			String repo,
-			Map<String, List<Integer>> report) {
+			Map<ReportKey, List<Long>> report,
+			ProjectAssessmentProperties properties) {
+		super(report, properties);
 		this.restTemplate = restTemplate;
-		this.repo = repo;
-		this.report = report;
 	}
 
 	@Override
 	public RepeatStatus execute(StepContribution contribution, ChunkContext chunkContext) throws Exception {
 
 		String query = getQuery();
-		int issueCount = 0;
+		long issueCount = 0;
 
 		// For each month
 		Date startDate = DateCalculationUtils.getFirstMonthStartDate();
 		Date endDate = DateCalculationUtils.getFirstMonthEndDate();
 
-		List<Integer> values = new ArrayList<>(12);
+		List<Long> values = new ArrayList<>(MONTHS);
 
-		for (int i = 0; i < 12; i++) {
+		for (int i = 0; i < MONTHS; i++) {
 			UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl("https://api.github.com/search/issues")
 					.queryParam("q", String.format(query, getDateString(startDate, endDate)));
 
@@ -85,7 +76,7 @@ public abstract class BaseGithubSearchTasklet implements Tasklet {
 			HttpEntity<String> response = this.restTemplate.getForEntity(uri, String.class);
 
 			Map<String, Object> result = new ObjectMapper().readValue(response.getBody(), HashMap.class);
-			issueCount = (Integer) result.get(getResultKey());
+			issueCount = ((Integer) result.get(getResultKey())).longValue();
 
 			values.add(issueCount);
 

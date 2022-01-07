@@ -22,9 +22,12 @@ import org.springframework.assessmentjob.batch.ClosedAsDocumentationPerMonthTask
 import org.springframework.assessmentjob.batch.ClosedAsDuplicatePerMonthTasklet;
 import org.springframework.assessmentjob.batch.ClosedAsEnhancementPerMonthTasklet;
 import org.springframework.assessmentjob.batch.ClosedAsInvalidPerMonthTasklet;
+import org.springframework.assessmentjob.batch.ClosedAsQuestionPerMonthTasklet;
 import org.springframework.assessmentjob.batch.ClosedAsTaskPerMonthTasklet;
 import org.springframework.assessmentjob.batch.CommunityCreatedPerMonthTasklet;
+import org.springframework.assessmentjob.batch.MonthlyDownloadCountTasklet;
 import org.springframework.assessmentjob.batch.NotTriagedPerMonthTasklet;
+import org.springframework.assessmentjob.batch.ProjectCreationPerMonthTasklet;
 import org.springframework.assessmentjob.batch.ReportGeneratingTasklet;
 import org.springframework.assessmentjob.batch.TeamCreatedPerMonthTasklet;
 import org.springframework.batch.core.Job;
@@ -129,6 +132,27 @@ public class BatchConfiguration {
 	}
 
 	@Bean
+	public Step closedAsQuestionPerMonthStep(ClosedAsQuestionPerMonthTasklet tasklet) {
+		return this.stepBuilderFactory.get("closedAsQuestionPerMonthStep")
+				.tasklet(tasklet)
+				.build();
+	}
+
+	@Bean
+	public Step monthlyDownloadsStep(MonthlyDownloadCountTasklet tasklet) {
+		return this.stepBuilderFactory.get("monthlyDownloadStep")
+				.tasklet(tasklet)
+				.build();
+	}
+
+	@Bean
+	public Step projectDownloadsStep(ProjectCreationPerMonthTasklet tasklet) {
+		return this.stepBuilderFactory.get("projectCreationStep")
+				.tasklet(tasklet)
+				.build();
+	}
+
+	@Bean
 	public Job job() {
 		return this.jobBuilderFactory.get("job")
 				.start(teamCreatedPerMonthStep(null))
@@ -141,6 +165,9 @@ public class BatchConfiguration {
 				.next(closedAsTaskPerMonthStep(null))
 				.next(closedAsDocumentationPerMonthStep(null))
 				.next(notTriagedPerMonthStep(null))
+				.next(closedAsQuestionPerMonthStep(null))
+				.next(monthlyDownloadsStep(null))
+				.next(projectDownloadsStep(null))
 				.next(reportGenerationStep(null))
 				.build();
 	}

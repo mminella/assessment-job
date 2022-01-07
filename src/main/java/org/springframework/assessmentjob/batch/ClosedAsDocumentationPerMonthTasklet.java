@@ -19,7 +19,8 @@ package org.springframework.assessmentjob.batch;
 import java.util.List;
 import java.util.Map;
 
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.assessmentjob.configuration.ProjectAssessmentProperties;
+import org.springframework.assessmentjob.util.ReportKey;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestOperations;
 
@@ -30,14 +31,14 @@ import org.springframework.web.client.RestOperations;
 public class ClosedAsDocumentationPerMonthTasklet extends BaseGithubSearchTasklet {
 
 	public ClosedAsDocumentationPerMonthTasklet(RestOperations restTemplate,
-			@Value("${spring.project.repo}") String repo,
-			Map<String, List<Integer>> report) {
-		super(restTemplate, repo, report);
+			Map<ReportKey, List<Long>> report,
+			ProjectAssessmentProperties properties) {
+		super(restTemplate, report, properties);
 	}
 
 	@Override
 	public String getQuery() {
-		return repo + " is:issue closed:%s is:closed label:\"in: documentation\"";
+		return properties.getProjectRepo() + " is:issue closed:%s is:closed label:\"in: documentation\"";
 	}
 
 	@Override
@@ -46,7 +47,7 @@ public class ClosedAsDocumentationPerMonthTasklet extends BaseGithubSearchTaskle
 	}
 
 	@Override
-	public String getReportKey() {
-		return "closed_as_documentation";
+	public ReportKey getReportKey() {
+		return ReportKey.CLOSED_AS_DOCS;
 	}
 }
