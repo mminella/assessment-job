@@ -43,3 +43,6 @@ spring.elasticsearch.rest.uris=https://some_url_to_elastic
 spring.elasticsearch.rest.username=some_username
 spring.elasticsearch.rest.password=some_password
 ```
+To run the job, build it from the root of the project with `mvn clean package` and then execute the command `java -jar target/assessment-job-0.0.1-SNAPSHOT.jar`
+
+NOTE: The Github Issue tags used to identify if an issue is a backlog/etc issue, are hardcoded in the code so please modify as needed.
