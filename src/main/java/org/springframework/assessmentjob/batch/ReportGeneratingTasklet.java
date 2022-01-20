@@ -16,14 +16,7 @@
 
 package org.springframework.assessmentjob.batch;
 
-import java.text.SimpleDateFormat;
-import java.util.Calendar;
-import java.util.Date;
-import java.util.List;
-import java.util.Map;
-
 import org.apache.commons.lang3.time.DateUtils;
-
 import org.springframework.assessmentjob.configuration.ProjectAssessmentProperties;
 import org.springframework.assessmentjob.util.ReportKey;
 import org.springframework.batch.core.StepContribution;
@@ -32,67 +25,67 @@ import org.springframework.batch.core.step.tasklet.Tasklet;
 import org.springframework.batch.repeat.RepeatStatus;
 import org.springframework.stereotype.Component;
 
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.List;
+import java.util.Map;
+
 /**
  * @author Michael Minella
  */
-@Component
-public class ReportGeneratingTasklet implements Tasklet {
+@Component public class ReportGeneratingTasklet implements Tasklet {
 
-	private final Map<ReportKey, List<Long>> report;
+    private final Map<ReportKey, List<Long>> report;
+    private final ProjectAssessmentProperties properties;
+    private SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd");
 
-	private SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd");
+    public ReportGeneratingTasklet(Map<ReportKey, List<Long>> report, ProjectAssessmentProperties properties) {
+        this.report = report;
+        this.properties = properties;
+    }
 
-	private final ProjectAssessmentProperties properties;
+    @Override public RepeatStatus execute(StepContribution contribution, ChunkContext chunkContext) throws Exception {
 
-	public ReportGeneratingTasklet(Map<ReportKey, List<Long>> report,
-			ProjectAssessmentProperties properties) {
-		this.report = report;
-		this.properties = properties;
-	}
+        System.out.println(">> GENERATING REPORT");
+        System.out.println(">> Report size = " + report.size());
 
-	@Override
-	public RepeatStatus execute(StepContribution contribution, ChunkContext chunkContext) throws Exception {
+        for (ReportKey key : ReportKey.values()) {
+            Calendar c = Calendar.getInstance();   // this takes current date
+            c.add(Calendar.MONTH, -12);
+            c.set(Calendar.DAY_OF_MONTH, 1);
+            Date startDate = c.getTime();
+            c.set(Calendar.DAY_OF_MONTH, c.getActualMaximum(Calendar.DAY_OF_MONTH));
+            Date endDate = c.getTime();
 
-		System.out.println(">> GENERATING REPORT");
-		System.out.println(">> Report size = " + report.size());
+            List<Long> values = report.get(key);
 
-		for(ReportKey key : ReportKey.values()) {
-			Calendar c = Calendar.getInstance();   // this takes current date
-			c.add(Calendar.MONTH, -12);
-			c.set(Calendar.DAY_OF_MONTH, 1);
-			Date startDate = c.getTime();
-			c.set(Calendar.DAY_OF_MONTH, c.getActualMaximum(Calendar.DAY_OF_MONTH));
-			Date endDate = c.getTime();
+            if (values != null) {
+                System.out.println(key.getValue());
 
-			List<Long> values = report.get(key);
+                for (int i = values.size() - 1; i >= 0; i--) {
 
-			if(values != null) {
-				System.out.println(key.getValue());
+                    if (this.properties.isOutputDates()) {
+                        System.out.println(String.format("\t%s: %s", getDateString(startDate, endDate), values.get(i)));
+                    } else {
+                        System.out.println(values.get(i));
+                    }
 
-				for (int i = values.size() - 1; i >= 0; i--){
+                    startDate = DateUtils.addMonths(startDate, 1);
+                    endDate = DateUtils.addMonths(endDate, 1);
+                    Calendar instance = Calendar.getInstance();
+                    instance.setTime(endDate);
+                    instance.set(Calendar.DAY_OF_MONTH, instance.getActualMaximum(Calendar.DAY_OF_MONTH));
+                    endDate = instance.getTime();
+                }
+            }
+        }
 
-					if(this.properties.isOutputDates()) {
-						System.out.println(String.format("\t%s: %s", getDateString(startDate, endDate), values.get(i)));
-					}
-					else {
-						System.out.println(values.get(i));
-					}
+        return RepeatStatus.FINISHED;
+    }
 
-					startDate = DateUtils.addMonths(startDate, 1);
-					endDate = DateUtils.addMonths(endDate, 1);
-					Calendar instance = Calendar.getInstance();
-					instance.setTime(endDate);
-					instance.set(Calendar.DAY_OF_MONTH, instance.getActualMaximum(Calendar.DAY_OF_MONTH));
-					endDate = instance.getTime();
-				}
-			}
-		}
+    private String getDateString(Date startDate, Date endDate) {
 
-		return RepeatStatus.FINISHED;
-	}
-
-	private String getDateString(Date startDate, Date endDate) {
-
-		return String.format("%s - %s", formatter.format(startDate), formatter.format(endDate));
-	}
+        return String.format("%s - %s", formatter.format(startDate), formatter.format(endDate));
+    }
 }

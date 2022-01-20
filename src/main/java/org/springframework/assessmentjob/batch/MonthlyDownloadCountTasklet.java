@@ -16,14 +16,6 @@
 
 package org.springframework.assessmentjob.batch;
 
-import java.io.IOException;
-import java.time.LocalDate;
-import java.time.Period;
-import java.time.ZoneOffset;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.client.RequestOptions;
@@ -34,7 +26,6 @@ import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.search.aggregations.AggregationBuilders;
 import org.elasticsearch.search.aggregations.metrics.ParsedSum;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
-
 import org.springframework.assessmentjob.configuration.ProjectAssessmentProperties;
 import org.springframework.assessmentjob.util.ReportKey;
 import org.springframework.batch.core.StepContribution;
@@ -42,69 +33,70 @@ import org.springframework.batch.core.scope.context.ChunkContext;
 import org.springframework.batch.repeat.RepeatStatus;
 import org.springframework.stereotype.Component;
 
+import java.io.IOException;
+import java.time.LocalDate;
+import java.time.Period;
+import java.time.ZoneOffset;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+
 /**
  * @author Michael Minella
  */
-@Component
-public class MonthlyDownloadCountTasklet extends ReportTasklet {
+@Component public class MonthlyDownloadCountTasklet extends ReportTasklet {
 
-	private static final Period MONTHLY = Period.ofMonths(1);
+    private static final Period MONTHLY = Period.ofMonths(1);
 
-	private final RestHighLevelClient client;
+    private final RestHighLevelClient client;
 
-	public MonthlyDownloadCountTasklet(Map<ReportKey, List<Long>> report,
-			RestHighLevelClient client,
-			ProjectAssessmentProperties properties) {
-		super(report, properties);
-		this.client = client;
-	}
+    public MonthlyDownloadCountTasklet(Map<ReportKey, List<Long>> report, RestHighLevelClient client,
+        ProjectAssessmentProperties properties) {
+        super(report, properties);
+        this.client = client;
+    }
 
-	@Override
-	public RepeatStatus execute(StepContribution contribution, ChunkContext chunkContext) throws Exception {
-		List<Long> values = new ArrayList<>();
+    private static long toEpoch(LocalDate time) {
+        return time.atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli();
+    }
 
-		LocalDate curDate = LocalDate.of(LocalDate.now().getYear(), LocalDate.now().getMonth(), 1);
+    @Override public RepeatStatus execute(StepContribution contribution, ChunkContext chunkContext) throws Exception {
+        List<Long> values = new ArrayList<>();
 
-		for (int i = 0; i < MONTHS; i++) {
-			values.add(getDownloadCount(properties.getProjectId(),
-					properties.getProjectArtifactId(),
-					curDate,
-					MONTHLY));
+        LocalDate curDate = LocalDate.of(LocalDate.now().getYear(), LocalDate.now().getMonth(), 1);
 
-			curDate = curDate.minusMonths(1);
-		}
+        for (int i = 0; i < MONTHS; i++) {
+            values.add(
+                getDownloadCount(properties.getProjectId(), properties.getProjectArtifactId(), curDate, MONTHLY));
 
-		report.put(getReportKey(), values);
+            curDate = curDate.minusMonths(1);
+        }
 
-		return RepeatStatus.FINISHED;
-	}
+        report.put(getReportKey(), values);
 
-	public long getDownloadCount(String groupId, String artifactId, LocalDate start, Period period) throws IOException {
-		long startTimestamp = toEpoch(start.withDayOfMonth(1));
-		long endTimestamp = toEpoch(start.plus(period));
-		SearchRequest searchRequest = new SearchRequest("downloads");
-		QueryBuilder query = query(groupId, artifactId, startTimestamp, endTimestamp);
-		searchRequest.source(new SearchSourceBuilder().query(query)
-				.aggregation(AggregationBuilders.sum("downloads").field("count")));
-		SearchResponse response = this.client.search(searchRequest, RequestOptions.DEFAULT);
-		ParsedSum downloads = response.getAggregations().get("downloads");
-		return (long) downloads.getValue();
-	}
+        return RepeatStatus.FINISHED;
+    }
 
-	private QueryBuilder query(String groupId, String artifactId, long from, long to) {
-		return QueryBuilders.boolQuery().filter(new MatchQueryBuilder("projectId", groupId))
-				.filter(new MatchQueryBuilder("artifactId", artifactId))
-				.filter(QueryBuilders.rangeQuery("from").gte(from)).filter(QueryBuilders.rangeQuery("to").lt(to));
+    public long getDownloadCount(String groupId, String artifactId, LocalDate start, Period period) throws IOException {
+        long startTimestamp = toEpoch(start.withDayOfMonth(1));
+        long endTimestamp = toEpoch(start.plus(period));
+        SearchRequest searchRequest = new SearchRequest("downloads");
+        QueryBuilder query = query(groupId, artifactId, startTimestamp, endTimestamp);
+        searchRequest.source(
+            new SearchSourceBuilder().query(query).aggregation(AggregationBuilders.sum("downloads").field("count")));
+        SearchResponse response = this.client.search(searchRequest, RequestOptions.DEFAULT);
+        ParsedSum downloads = response.getAggregations().get("downloads");
+        return (long) downloads.getValue();
+    }
 
-	}
+    private QueryBuilder query(String groupId, String artifactId, long from, long to) {
+        return QueryBuilders.boolQuery().filter(new MatchQueryBuilder("projectId", groupId))
+            .filter(new MatchQueryBuilder("artifactId", artifactId)).filter(QueryBuilders.rangeQuery("from").gte(from))
+            .filter(QueryBuilders.rangeQuery("to").lt(to));
 
-	private static long toEpoch(LocalDate time) {
-		return time.atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli();
-	}
+    }
 
-
-	@Override
-	public ReportKey getReportKey() {
-		return ReportKey.MAVEN_DOWNLOADS;
-	}
+    @Override public ReportKey getReportKey() {
+        return ReportKey.MAVEN_DOWNLOADS;
+    }
 }

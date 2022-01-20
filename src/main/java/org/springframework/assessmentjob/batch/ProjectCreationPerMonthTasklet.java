@@ -16,6 +16,20 @@
 
 package org.springframework.assessmentjob.batch;
 
+import org.elasticsearch.client.RequestOptions;
+import org.elasticsearch.client.RestHighLevelClient;
+import org.elasticsearch.client.core.CountRequest;
+import org.elasticsearch.client.core.CountResponse;
+import org.elasticsearch.index.query.MatchQueryBuilder;
+import org.elasticsearch.index.query.QueryBuilder;
+import org.elasticsearch.index.query.QueryBuilders;
+import org.springframework.assessmentjob.configuration.ProjectAssessmentProperties;
+import org.springframework.assessmentjob.util.ReportKey;
+import org.springframework.batch.core.StepContribution;
+import org.springframework.batch.core.scope.context.ChunkContext;
+import org.springframework.batch.repeat.RepeatStatus;
+import org.springframework.stereotype.Component;
+
 import java.io.IOException;
 import java.time.LocalDate;
 import java.time.Period;
@@ -24,82 +38,59 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-import org.elasticsearch.client.RequestOptions;
-import org.elasticsearch.client.RestHighLevelClient;
-import org.elasticsearch.client.core.CountRequest;
-import org.elasticsearch.client.core.CountResponse;
-import org.elasticsearch.index.query.MatchQueryBuilder;
-import org.elasticsearch.index.query.QueryBuilder;
-import org.elasticsearch.index.query.QueryBuilders;
-
-import org.springframework.assessmentjob.configuration.ProjectAssessmentProperties;
-import org.springframework.assessmentjob.util.ReportKey;
-import org.springframework.batch.core.StepContribution;
-import org.springframework.batch.core.scope.context.ChunkContext;
-import org.springframework.batch.repeat.RepeatStatus;
-import org.springframework.stereotype.Component;
-
 /**
  * @author Michael Minella
  */
-@Component
-public class ProjectCreationPerMonthTasklet extends ReportTasklet {
+@Component public class ProjectCreationPerMonthTasklet extends ReportTasklet {
 
-	private static final Period MONTHLY = Period.ofMonths(1);
+    private static final Period MONTHLY = Period.ofMonths(1);
 
-	private final RestHighLevelClient client;
+    private final RestHighLevelClient client;
 
-	public ProjectCreationPerMonthTasklet(Map<ReportKey, List<Long>> report,
-			RestHighLevelClient client,
-			ProjectAssessmentProperties properties) {
-		super(report, properties);
-		this.client = client;
-	}
+    public ProjectCreationPerMonthTasklet(Map<ReportKey, List<Long>> report, RestHighLevelClient client,
+        ProjectAssessmentProperties properties) {
+        super(report, properties);
+        this.client = client;
+    }
 
+    private static long toEpoch(LocalDate time) {
+        return time.atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli();
+    }
 
-	@Override
-	public RepeatStatus execute(StepContribution contribution, ChunkContext chunkContext) throws Exception {
-		List<Long> values = new ArrayList<>();
+    @Override public RepeatStatus execute(StepContribution contribution, ChunkContext chunkContext) throws Exception {
+        List<Long> values = new ArrayList<>();
 
-		LocalDate curDate = LocalDate.of(LocalDate.now().getYear(), LocalDate.now().getMonth(), 1);
+        LocalDate curDate = LocalDate.of(LocalDate.now().getYear(), LocalDate.now().getMonth(), 1);
 
-		for (int i = 0; i < MONTHS; i++) {
-			values.add(getProjectCreationCount(properties.getDependency(),
-					curDate,
-					MONTHLY));
+        for (int i = 0; i < MONTHS; i++) {
+            values.add(getProjectCreationCount(properties.getDependency(), curDate, MONTHLY));
 
-			curDate = curDate.minusMonths(1);
-		}
+            curDate = curDate.minusMonths(1);
+        }
 
-		report.put(getReportKey(), values);
+        report.put(getReportKey(), values);
 
-		return RepeatStatus.FINISHED;
-	}
+        return RepeatStatus.FINISHED;
+    }
 
-	private long getProjectCreationCount(String dependency, LocalDate start, Period period) throws IOException {
-		long startTimestamp = toEpoch(start);
-		long endTimestamp = toEpoch(start.plus(period));
-		CountRequest countRequest = new CountRequest();
-		QueryBuilder query = query(dependency, startTimestamp, endTimestamp);
-		countRequest.query(query);
-		CountResponse count = this.client.count(countRequest, RequestOptions.DEFAULT);
-		return count.getCount();
-	}
+    private long getProjectCreationCount(String dependency, LocalDate start, Period period) throws IOException {
+        long startTimestamp = toEpoch(start);
+        long endTimestamp = toEpoch(start.plus(period));
+        CountRequest countRequest = new CountRequest();
+        QueryBuilder query = query(dependency, startTimestamp, endTimestamp);
+        countRequest.query(query);
+        CountResponse count = this.client.count(countRequest, RequestOptions.DEFAULT);
+        return count.getCount();
+    }
 
-	private QueryBuilder query(String dependency, long from, long to) {
-		return QueryBuilders.boolQuery()
-				.filter(new MatchQueryBuilder("dependencies.values", dependency))
-				.mustNot(new MatchQueryBuilder("errorState.invalid", true))
-				.filter(QueryBuilders.rangeQuery("generationTimestamp").gte(from).lt(to));
+    private QueryBuilder query(String dependency, long from, long to) {
+        return QueryBuilders.boolQuery().filter(new MatchQueryBuilder("dependencies.values", dependency))
+            .mustNot(new MatchQueryBuilder("errorState.invalid", true))
+            .filter(QueryBuilders.rangeQuery("generationTimestamp").gte(from).lt(to));
 
-	}
+    }
 
-	private static long toEpoch(LocalDate time) {
-		return time.atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli();
-	}
-
-	@Override
-	public ReportKey getReportKey() {
-		return ReportKey.PROJECT_STARTS;
-	}
+    @Override public ReportKey getReportKey() {
+        return ReportKey.PROJECT_STARTS;
+    }
 }
