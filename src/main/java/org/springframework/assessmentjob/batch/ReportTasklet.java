@@ -16,31 +16,27 @@
 
 package org.springframework.assessmentjob.batch;
 
-import java.text.SimpleDateFormat;
-import java.util.List;
-import java.util.Map;
-
 import org.springframework.assessmentjob.configuration.ProjectAssessmentProperties;
 import org.springframework.assessmentjob.util.ReportKey;
 import org.springframework.batch.core.step.tasklet.Tasklet;
+
+import java.text.SimpleDateFormat;
+import java.util.List;
+import java.util.Map;
 
 /**
  * @author Michael Minella
  */
 public abstract class ReportTasklet implements Tasklet {
-	protected final Map<ReportKey, List<Long>> report;
+    public static final int MONTHS = 13;
+    protected final Map<ReportKey, List<Long>> report;
+    protected final ProjectAssessmentProperties properties;
+    protected SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd");
 
-	protected final ProjectAssessmentProperties properties;
+    public ReportTasklet(Map<ReportKey, List<Long>> report, ProjectAssessmentProperties properties) {
+        this.report = report;
+        this.properties = properties;
+    }
 
-	public static final int MONTHS = 13;
-
-	protected SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd");
-
-	public ReportTasklet(Map<ReportKey, List<Long>> report,
-			ProjectAssessmentProperties properties) {
-		this.report = report;
-		this.properties = properties;
-	}
-
-	public abstract ReportKey getReportKey();
+    public abstract ReportKey getReportKey();
 }

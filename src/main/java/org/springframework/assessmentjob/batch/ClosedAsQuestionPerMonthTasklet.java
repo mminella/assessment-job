@@ -16,36 +16,33 @@
 
 package org.springframework.assessmentjob.batch;
 
-import java.util.List;
-import java.util.Map;
-
 import org.springframework.assessmentjob.configuration.ProjectAssessmentProperties;
 import org.springframework.assessmentjob.util.ReportKey;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestOperations;
 
+import java.util.List;
+import java.util.Map;
+
 /**
  * @author Michael Minella
  */
-@Component
-public class ClosedAsQuestionPerMonthTasklet extends BaseGithubSearchTasklet {
+@Component public class ClosedAsQuestionPerMonthTasklet extends BaseGithubSearchTasklet {
 
-	public ClosedAsQuestionPerMonthTasklet(RestOperations restTemplate, Map<ReportKey, List<Long>> report, ProjectAssessmentProperties properties) {
-		super(restTemplate, report, properties);
-	}
+    public ClosedAsQuestionPerMonthTasklet(RestOperations restTemplate, Map<ReportKey, List<Long>> report,
+        ProjectAssessmentProperties properties) {
+        super(restTemplate, report, properties);
+    }
 
-	@Override
-	public String getQuery() {
-		return properties.getProjectRepo() + " is:issue closed:%s is:closed label:\"for: stackoverflow\"";
-	}
+    @Override public String getQuery() {
+        return properties.getProjectRepo() + " is:issue closed:%s is:closed label:\"for: stackoverflow\"";
+    }
 
-	@Override
-	public String getResultKey() {
-		return "total_count";
-	}
+    @Override public String getResultKey() {
+        return "total_count";
+    }
 
-	@Override
-	public ReportKey getReportKey() {
-		return ReportKey.CLOSED_AS_QUESTION;
-	}
+    @Override public ReportKey getReportKey() {
+        return ReportKey.CLOSED_AS_QUESTION;
+    }
 }

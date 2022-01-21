@@ -16,19 +16,11 @@
 
 package org.springframework.assessmentjob.batch;
 
-import java.net.URI;
-import java.util.ArrayList;
-import java.util.Calendar;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.lang3.time.DateUtils;
-
 import org.springframework.assessmentjob.configuration.ProjectAssessmentProperties;
 import org.springframework.assessmentjob.util.DateCalculationUtils;
+import org.springframework.assessmentjob.util.RateLimits;
 import org.springframework.assessmentjob.util.ReportKey;
 import org.springframework.batch.core.StepContribution;
 import org.springframework.batch.core.scope.context.ChunkContext;
@@ -37,66 +29,74 @@ import org.springframework.http.HttpEntity;
 import org.springframework.web.client.RestOperations;
 import org.springframework.web.util.UriComponentsBuilder;
 
+import java.net.URI;
+import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
 /**
  * @author Michael Minella
  */
 public abstract class BaseGithubSearchTasklet extends ReportTasklet {
 
-	public abstract String getQuery();
+    private final RestOperations restTemplate;
 
-	public abstract String getResultKey();
+    public BaseGithubSearchTasklet(RestOperations restTemplate, Map<ReportKey, List<Long>> report,
+        ProjectAssessmentProperties properties) {
+        super(report, properties);
+        this.restTemplate = restTemplate;
+    }
 
-	private final RestOperations restTemplate;
+    public abstract String getQuery();
 
-	public BaseGithubSearchTasklet(RestOperations restTemplate,
-			Map<ReportKey, List<Long>> report,
-			ProjectAssessmentProperties properties) {
-		super(report, properties);
-		this.restTemplate = restTemplate;
-	}
+    public abstract String getResultKey();
 
-	@Override
-	public RepeatStatus execute(StepContribution contribution, ChunkContext chunkContext) throws Exception {
+    @Override public RepeatStatus execute(StepContribution contribution, ChunkContext chunkContext) throws Exception {
 
-		String query = getQuery();
-		long issueCount = 0;
+        String query = getQuery();
+        long issueCount = 0;
 
-		// For each month
-		Date startDate = DateCalculationUtils.getFirstMonthStartDate();
-		Date endDate = DateCalculationUtils.getFirstMonthEndDate();
+        // For each month
+        Date startDate = DateCalculationUtils.getFirstMonthStartDate();
+        Date endDate = DateCalculationUtils.getFirstMonthEndDate();
 
-		List<Long> values = new ArrayList<>(MONTHS);
+        List<Long> values = new ArrayList<>(MONTHS);
 
-		for (int i = 0; i < MONTHS; i++) {
-			UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl("https://api.github.com/search/issues")
-					.queryParam("q", String.format(query, getDateString(startDate, endDate)));
+        for (int i = 0; i < MONTHS; i++) {
+            UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl("https://api.github.com/search/issues")
+                .queryParam("q", String.format(query, getDateString(startDate, endDate)));
 
-			URI uri = builder.build().encode().toUri();
-			System.out.println(">> " + uri.toString());
-			HttpEntity<String> response = this.restTemplate.getForEntity(uri, String.class);
+            URI uri = builder.build().encode().toUri();
+            System.out.println(">> " + uri.toString());
+            HttpEntity<String> response = this.restTemplate.getForEntity(uri, String.class);
 
-			Map<String, Object> result = new ObjectMapper().readValue(response.getBody(), HashMap.class);
-			issueCount = ((Integer) result.get(getResultKey())).longValue();
+            RateLimits.shortDelay();
 
-			values.add(issueCount);
+            Map<String, Object> result = new ObjectMapper().readValue(response.getBody(), HashMap.class);
+            issueCount = ((Integer) result.get(getResultKey())).longValue();
 
-			startDate = DateUtils.addMonths(startDate, -1);
-			endDate = DateUtils.addMonths(endDate, -1);
-			Calendar instance = Calendar.getInstance();
-			instance.setTime(endDate);
-			instance.set(Calendar.DAY_OF_MONTH, instance.getActualMaximum(Calendar.DAY_OF_MONTH));
-			endDate = instance.getTime();
+            values.add(issueCount);
 
-			issueCount = 0;
-		}
+            startDate = DateUtils.addMonths(startDate, -1);
+            endDate = DateUtils.addMonths(endDate, -1);
+            Calendar instance = Calendar.getInstance();
+            instance.setTime(endDate);
+            instance.set(Calendar.DAY_OF_MONTH, instance.getActualMaximum(Calendar.DAY_OF_MONTH));
+            endDate = instance.getTime();
 
-		report.put(getReportKey(), values);
+            issueCount = 0;
+        }
 
-		return RepeatStatus.FINISHED;
-	}
+        report.put(getReportKey(), values);
 
-	private String getDateString(Date startDate, Date endDate) {
+        return RepeatStatus.FINISHED;
+    }
 
-		return String.format("%s..%s", formatter.format(startDate), formatter.format(endDate));
-	}
+    private String getDateString(Date startDate, Date endDate) {
+
+        return String.format("%s..%s", formatter.format(startDate), formatter.format(endDate));
+    }
 }

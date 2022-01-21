@@ -16,38 +16,33 @@
 
 package org.springframework.assessmentjob.batch;
 
-import java.util.List;
-import java.util.Map;
-
 import org.springframework.assessmentjob.configuration.ProjectAssessmentProperties;
 import org.springframework.assessmentjob.util.ReportKey;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestOperations;
 
+import java.util.List;
+import java.util.Map;
+
 /**
  * @author Michael Minella
  */
-@Component
-public class ClosedAsBackportPerMonthTasklet extends BaseGithubSearchTasklet {
+@Component public class ClosedAsBackportPerMonthTasklet extends BaseGithubSearchTasklet {
 
-	public ClosedAsBackportPerMonthTasklet(RestOperations restTemplate,
-			Map<ReportKey, List<Long>> report,
-			ProjectAssessmentProperties properties) {
-		super(restTemplate, report, properties);
-	}
+    public ClosedAsBackportPerMonthTasklet(RestOperations restTemplate, Map<ReportKey, List<Long>> report,
+        ProjectAssessmentProperties properties) {
+        super(restTemplate, report, properties);
+    }
 
-	@Override
-	public String getQuery() {
-		return properties.getProjectRepo() + " is:issue closed:%s is:closed label:\"has: backports\"";
-	}
+    @Override public String getQuery() {
+        return properties.getProjectRepo() + " is:issue closed:%s is:closed label:\"has: backports\"";
+    }
 
-	@Override
-	public String getResultKey() {
-		return "total_count";
-	}
+    @Override public String getResultKey() {
+        return "total_count";
+    }
 
-	@Override
-	public ReportKey getReportKey() {
-		return ReportKey.CLOSED_AS_BACKPORT;
-	}
+    @Override public ReportKey getReportKey() {
+        return ReportKey.CLOSED_AS_BACKPORT;
+    }
 }
